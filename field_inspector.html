@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Panel Inspector">
+<title>Panel Leakage Field Inspector</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#1b2838;--card:#243447;--teal:#4a90a4;--steel:#2c5f73;--text:#c8d6e0;--dim:#7fb3c4;
+--g0:#2ecc71;--g1:#f1c40f;--g2:#e67e22;--g3:#e74c3c;--g4:#9b59b6;--border:#3a5068;--white:#fff}
+body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro','Segoe UI',sans-serif;
+background:var(--bg);color:var(--text);min-height:100vh;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+.app{max-width:500px;margin:0 auto;padding:12px}
+.hdr{text-align:center;padding:14px 0 10px;border-bottom:2px solid var(--teal);margin-bottom:14px}
+.hdr h1{color:var(--teal);font-size:18px;letter-spacing:.5px}
+.hdr p{color:var(--dim);font-size:11px;margin-top:2px}
+.tabs{display:flex;gap:6px;margin-bottom:14px}
+.tab{flex:1;padding:10px 6px;text-align:center;font-size:12px;font-weight:600;
+border-radius:8px;border:1px solid var(--border);color:var(--dim);cursor:pointer;background:var(--card)}
+.tab.on{background:var(--teal);color:var(--white);border-color:var(--teal)}
+.tab .badge{display:inline-block;background:var(--g3);color:#fff;font-size:10px;border-radius:10px;
+padding:1px 6px;margin-left:4px;min-width:18px}
+.screen{display:none}.screen.on{display:block}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:11px;color:var(--dim);text-transform:uppercase;
+letter-spacing:.5px;margin-bottom:6px;font-weight:600}
+.sel-group{display:flex;flex-wrap:wrap;gap:6px}
+.sel-btn{padding:10px 14px;border-radius:8px;border:1px solid var(--border);
+background:var(--card);color:var(--text);font-size:13px;cursor:pointer;
+min-height:44px;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.sel-btn.on{background:var(--teal);color:var(--white);border-color:var(--teal)}
+.sel-btn:active{transform:scale(.96)}
+.sel-btn.add-btn{border-style:dashed;color:var(--dim);font-size:12px}
+.grade-group{display:flex;gap:6px}
+.grade-btn{flex:1;padding:14px 4px;border-radius:10px;text-align:center;font-weight:700;
+font-size:15px;cursor:pointer;border:2px solid transparent;opacity:.5;transition:all .15s;min-height:54px}
+.grade-btn.on{opacity:1;border-color:var(--white);transform:scale(1.05)}
+.grade-btn:active{transform:scale(.95)}
+.g0{background:var(--g0);color:#fff}.g1{background:var(--g1);color:#333}
+.g2{background:var(--g2);color:#fff}.g3{background:var(--g3);color:#fff}.g4{background:var(--g4);color:#fff}
+.chip-group{display:flex;flex-wrap:wrap;gap:6px}
+.chip{padding:8px 14px;border-radius:20px;border:1px solid var(--border);background:var(--card);
+color:var(--text);font-size:12px;cursor:pointer;transition:all .15s}
+.chip.on{background:var(--steel);color:var(--white);border-color:var(--teal)}
+.txt{width:100%;padding:12px;border-radius:8px;border:1px solid var(--border);background:var(--card);
+color:var(--text);font-size:14px;font-family:inherit;resize:vertical}
+.txt:focus{outline:none;border-color:var(--teal)}
+.search{width:100%;padding:12px;border-radius:8px;border:1px solid var(--border);background:var(--card);
+color:var(--text);font-size:14px;font-family:inherit;margin-bottom:8px}
+.search:focus{outline:none;border-color:var(--teal)}
+.panel-list{max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;background:var(--card)}
+.panel-item{padding:12px 14px;border-bottom:1px solid var(--border);font-size:14px;cursor:pointer;
+display:flex;justify-content:space-between;align-items:center;min-height:44px}
+.panel-item:active{background:var(--steel)}
+.panel-item .face{font-size:11px;color:var(--dim)}
+.panel-item.selected{background:var(--teal);color:var(--white)}
+.btn{width:100%;padding:16px;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;
+border:none;transition:all .15s;min-height:54px}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:var(--teal);color:var(--white)}
+.btn-danger{background:var(--g3);color:var(--white)}
+.btn-outline{background:transparent;color:var(--teal);border:2px solid var(--teal)}
+.btn+.btn{margin-top:8px}
+.btn:disabled{opacity:.4}
+.entry-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px}
+.entry-card .pid{font-weight:700;font-size:15px;color:var(--teal)}
+.entry-card .meta{font-size:12px;color:var(--dim);margin-top:4px;line-height:1.6}
+.entry-card .grade-tag{display:inline-block;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;color:#fff}
+.photo-section{border:1px solid var(--border);border-radius:10px;padding:10px;background:var(--card)}
+.photo-btn{display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;
+border-radius:10px;cursor:pointer;color:var(--white);font-size:14px;font-weight:600;
+background:var(--steel);border:none;width:100%;min-height:50px}
+.photo-btn:active{transform:scale(.97);background:var(--teal)}
+.photo-list{margin-top:8px}
+.photo-entry{display:flex;align-items:center;gap:10px;padding:8px;border-bottom:1px solid var(--border);font-size:12px;color:var(--dim)}
+.photo-entry .photo-time{color:var(--teal);font-weight:600;font-size:11px}
+.photo-entry .photo-remove{color:var(--g3);cursor:pointer;margin-left:auto;font-size:16px}
+.photo-count{background:var(--teal);color:#fff;font-size:10px;border-radius:10px;padding:2px 8px;margin-left:6px}
+.photo-note{font-size:11px;color:var(--dim);margin-top:8px;line-height:1.5;padding:8px;
+background:rgba(74,144,164,0.08);border-radius:6px}
+.success-flash{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(46,204,113,.15);
+display:flex;align-items:center;justify-content:center;z-index:100;animation:flashOut .8s ease forwards}
+.success-flash span{font-size:48px;animation:popIn .3s ease}
+@keyframes flashOut{0%{opacity:1}70%{opacity:1}100%{opacity:0}}
+@keyframes popIn{0%{transform:scale(0)}50%{transform:scale(1.3)}100%{transform:scale(1)}}
+.counter{position:fixed;bottom:env(safe-area-inset-bottom,12px);right:12px;background:var(--teal);
+color:#fff;width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+font-weight:700;font-size:16px;box-shadow:0 4px 12px rgba(0,0,0,.4);z-index:50}
+.offline-badge{display:inline-block;background:var(--g0);color:#fff;font-size:9px;border-radius:8px;padding:1px 6px;margin-left:6px}
+</style>
+</head>
+<body>
+<div class="app">
+<div class="hdr"><h1>Panel Inspector</h1><p>Offline Field Recording &middot; v2.1 <span class="offline-badge" id="offlineBadge">ONLINE</span></p></div>
+
+<div class="tabs">
+<div class="tab on" onclick="showTab('record')">&#128221; Record</div>
+<div class="tab" onclick="showTab('saved')">&#128203; Saved <span class="badge" id="countBadge">0</span></div>
+<div class="tab" onclick="showTab('export')">&#128229; Export</div>
+</div>
+
+<!-- RECORD -->
+<div class="screen on" id="s-record">
+
+<div class="field"><label>Level</label>
+<div class="sel-group" id="levelGroup"></div></div>
+
+<div class="field"><label>Section</label>
+<div class="sel-group" id="sectionGroup"></div></div>
+
+<div class="field"><label>Panel</label>
+<input type="text" class="search" id="panelSearch" placeholder="Search or scroll..." oninput="filterPanels()">
+<div class="panel-list" id="panelList"></div></div>
+
+<div class="field"><label>Leakage Grade</label>
+<div class="grade-group">
+<div class="grade-btn g0" onclick="setGrade(0)">0<br><small>Dry</small></div>
+<div class="grade-btn g1" onclick="setGrade(1)">1<br><small>Damp</small></div>
+<div class="grade-btn g2" onclick="setGrade(2)">2<br><small>Seep</small></div>
+<div class="grade-btn g3" onclick="setGrade(3)">3<br><small>Flow</small></div>
+<div class="grade-btn g4" onclick="setGrade(4)">4<br><small>Jet</small></div>
+</div></div>
+
+<div class="field"><label>Leakage Zones (tap all that apply)</label>
+<div class="chip-group">
+<div class="chip" onclick="toggleChip(this)">Top</div>
+<div class="chip" onclick="toggleChip(this)">Top-Middle</div>
+<div class="chip" onclick="toggleChip(this)">Middle</div>
+<div class="chip" onclick="toggleChip(this)">Middle-Bottom</div>
+<div class="chip" onclick="toggleChip(this)">Bottom</div>
+</div></div>
+
+<div class="field"><label>Leakage Type</label>
+<div class="sel-group" id="typeGroup">
+<div class="sel-btn" onclick="toggleType(this)">Joint</div>
+<div class="sel-btn" onclick="toggleType(this)">Face</div>
+<div class="sel-btn" onclick="toggleType(this)">Crack</div>
+<div class="sel-btn" onclick="toggleType(this)">Const. Joint</div>
+</div></div>
+
+<div class="field"><label>Photo Timestamps <span class="photo-count" id="photoCountLabel">0</span></label>
+<div class="photo-section">
+<button class="photo-btn" onclick="logPhotoTimestamp()">&#128247; Log Photo Timestamp</button>
+<div class="photo-list" id="photoList"></div>
+<div class="photo-note">
+<strong>Workflow:</strong><br>
+1. Take photos with your <strong>Camera app</strong> first (saves to Camera Roll)<br>
+2. Come back here and tap <strong>"Log Photo Timestamp"</strong> once per photo<br>
+3. The timestamps let you match Camera Roll photos to this inspection later
+</div>
+</div></div>
+
+<div class="field"><label>Inspector(s) &mdash; tap all that apply</label>
+<div class="sel-group" id="inspectorGroup"></div></div>
+
+<div class="field"><label>Notes</label>
+<textarea class="txt" id="notes" rows="2" placeholder="Optional notes..."></textarea></div>
+
+<button class="btn btn-primary" id="saveBtn" onclick="saveEntry()" disabled>&#10003; Save Inspection</button>
+<button class="btn btn-outline" onclick="resetForm()" style="margin-top:8px">Clear Form</button>
+</div>
+
+<!-- SAVED -->
+<div class="screen" id="s-saved">
+<div id="savedList"></div>
+<p id="noSaved" style="text-align:center;color:var(--dim);padding:40px 0">No inspections recorded yet</p>
+</div>
+
+<!-- EXPORT -->
+<div class="screen" id="s-export">
+<div style="text-align:center;padding:20px 0">
+<p style="font-size:14px;margin-bottom:20px;color:var(--dim)">Export all saved inspections as CSV.<br>Open in Excel or AirDrop to your Mac.</p>
+<button class="btn btn-primary" onclick="exportCSV()">&#128229; Export CSV (<span id="exportCount">0</span> records)</button>
+<button class="btn btn-danger" onclick="clearAll()" style="margin-top:20px">&#128465; Clear All Saved Data</button>
+<div style="margin-top:30px;padding:16px;background:var(--card);border-radius:10px;text-align:left">
+<p style="font-size:12px;color:var(--dim);line-height:1.6">
+<strong style="color:var(--teal)">How to get CSV into Excel:</strong><br>
+1. Tap Export CSV above<br>
+2. Choose "Save to Files" or AirDrop<br>
+3. Open file in Excel on your Mac<br>
+4. Copy rows into the Inspections sheet<br><br>
+<strong style="color:var(--teal)">Matching photos:</strong><br>
+Each CSV row includes photo timestamps.<br>
+Sort your Camera Roll by time to match.
+</p></div>
+</div></div>
+
+</div>
+
+<div class="counter" onclick="showTab('saved')" id="floatingCount">0</div>
+
+<script>
+const PANELS={"FD": {"G1": [{"id": "G1-E02", "face": "South"}, {"id": "G1-E03", "face": "South"}, {"id": "G1-E04", "face": "South"}, {"id": "G1-E05", "face": "South"}, {"id": "G1-W01", "face": "South"}, {"id": "G1-W02", "face": "South"}, {"id": "G1-W03", "face": "South"}, {"id": "G1-W04", "face": "South"}], "G6": [{"id": "G6-E01", "face": "North"}, {"id": "G6-E02", "face": "North"}, {"id": "G6-E03", "face": "North"}, {"id": "G6-E04", "face": "North"}, {"id": "G6-E05", "face": "North"}, {"id": "G6-E06", "face": "North"}, {"id": "G6-E07", "face": "North"}, {"id": "G6-E08", "face": "North"}, {"id": "G6-E09", "face": "North"}, {"id": "G6-E10", "face": "North"}, {"id": "G6-E11", "face": "North"}, {"id": "G6-E12", "face": "North"}, {"id": "G6-E13", "face": "North"}], "G6a": [{"id": "G6-W01", "face": "North"}, {"id": "G6-W02", "face": "North"}, {"id": "G6-W03", "face": "North"}, {"id": "G6-W04", "face": "North"}, {"id": "G6-W05", "face": "North"}, {"id": "G6-W06", "face": "North"}, {"id": "G6-W07", "face": "North"}, {"id": "G6-W08", "face": "North"}, {"id": "G6-W09", "face": "North"}, {"id": "G6-W10", "face": "North"}, {"id": "G6-W11", "face": "North"}, {"id": "G6-W12", "face": "North"}, {"id": "G6-W13", "face": "North"}, {"id": "G6-W14", "face": "North"}, {"id": "G6-W15", "face": "North"}, {"id": "G6-W16", "face": "North"}, {"id": "G6-W17", "face": "North"}, {"id": "G6-W18", "face": "North"}], "G7": [{"id": "G7-E01", "face": "North"}, {"id": "G7-E02", "face": "North"}, {"id": "G7-E03", "face": "North"}, {"id": "G7-E04", "face": "North"}, {"id": "G7-E05", "face": "North"}, {"id": "G7-E06", "face": "North"}, {"id": "G7-E07", "face": "North"}, {"id": "G7-E08", "face": "North"}, {"id": "G7-E09", "face": "North"}, {"id": "G7-E10", "face": "North"}, {"id": "G7-E11", "face": "North"}, {"id": "G7-E12", "face": "North"}, {"id": "G7-W01", "face": "North"}, {"id": "G7-W01a", "face": "North"}, {"id": "G7-W02", "face": "North"}, {"id": "G7-W03", "face": "North"}, {"id": "G7-W04", "face": "North"}, {"id": "G7-W05", "face": "North"}, {"id": "G7-W06", "face": "North"}, {"id": "G7-W07", "face": "North"}, {"id": "G7-W08", "face": "North"}, {"id": "G7-W09", "face": "North"}, {"id": "G7-W10", "face": "North"}, {"id": "G7-W11", "face": "North"}, {"id": "G7-W12", "face": "North"}, {"id": "G7-W13", "face": "North"}, {"id": "G7-W14", "face": "North"}, {"id": "G7-W15", "face": "North"}, {"id": "G7-W16", "face": "North"}, {"id": "G7-W17", "face": "North"}, {"id": "G7-W18", "face": "North"}], "H1b": [{"id": "H1-E20", "face": "South"}, {"id": "H1-E21", "face": "South"}, {"id": "H1b-W07", "face": "South"}], "H2a": [{"id": "H2-E01", "face": "South"}, {"id": "H2-E02", "face": "South"}, {"id": "H2-E03", "face": "South"}, {"id": "H2-E04", "face": "South"}, {"id": "H2-E05", "face": "South"}, {"id": "H2-E06", "face": "South"}, {"id": "H2-E08", "face": "South"}, {"id": "H2-E09", "face": "South"}, {"id": "H2-E10", "face": "South"}, {"id": "H2-E11", "face": "South"}, {"id": "H2-E12", "face": "South"}, {"id": "H2-E13", "face": "South"}, {"id": "H2-E14", "face": "South"}, {"id": "H2-E15", "face": "South"}, {"id": "H2-E16", "face": "South"}, {"id": "H2-E17", "face": "South"}, {"id": "H2-E18", "face": "South"}, {"id": "H2-E19", "face": "South"}, {"id": "H2-E20", "face": "South"}, {"id": "H2-E21", "face": "South"}, {"id": "H2-E22", "face": "South"}, {"id": "H2-E23", "face": "South"}, {"id": "H2a-W01", "face": "South"}, {"id": "H2a-W02", "face": "South"}, {"id": "H2a-W03", "face": "South"}, {"id": "H2a-W04", "face": "South"}, {"id": "H2a-W05", "face": "South"}], "H2b": [{"id": "H2b-W01", "face": "South"}, {"id": "H2b-W02", "face": "South"}, {"id": "H2b-W03", "face": "South"}, {"id": "H2b-W04", "face": "South"}, {"id": "H2b-W05", "face": "South"}, {"id": "H2b-W06", "face": "South"}, {"id": "H2b-W07", "face": "South"}, {"id": "H2b-W08", "face": "South"}, {"id": "H2b-W09", "face": "South"}, {"id": "H2b-W10", "face": "South"}, {"id": "H2b-W11", "face": "South"}], "H2c1": [{"id": "H2c1-W08", "face": "South"}], "H2c2": [{"id": "H2c2-W01", "face": "South"}, {"id": "H2c2-W02", "face": "South"}, {"id": "H2c2-W03", "face": "South"}], "Launching Shaft": [{"id": "G4-N01", "face": "North"}, {"id": "G4-N02", "face": "North"}, {"id": "G4-N03", "face": "North"}, {"id": "G4-N04", "face": "North"}, {"id": "G4-N05", "face": "North"}, {"id": "G4-N06", "face": "North"}, {"id": "G4-S01", "face": "North"}, {"id": "G4-S02", "face": "North"}, {"id": "G4-S03", "face": "North"}, {"id": "G4-S04", "face": "North"}, {"id": "G4-S05", "face": "North"}, {"id": "G4-S06", "face": "North"}], "Receiving Shaft": [{"id": "G5-E01", "face": "South"}, {"id": "G5-E02", "face": "South"}, {"id": "G5-E03", "face": "South"}, {"id": "G5-E04", "face": "South"}, {"id": "G5-E05", "face": "South"}, {"id": "G5-E06", "face": "South"}, {"id": "G5-E07", "face": "South"}, {"id": "G5-E08", "face": "South"}, {"id": "G5-N01", "face": "South"}, {"id": "G5-N02", "face": "South"}, {"id": "G5-N03", "face": "South"}, {"id": "G5-N04", "face": "South"}, {"id": "G5-N05", "face": "South"}, {"id": "G5-N06", "face": "South"}, {"id": "G5-N07", "face": "South"}, {"id": "G5-N08", "face": "South"}, {"id": "G5-N09", "face": "South"}, {"id": "G5-N10", "face": "South"}, {"id": "G5-N11", "face": "South"}, {"id": "G5-N12", "face": "South"}, {"id": "G5-S01", "face": "South"}, {"id": "G5-W01", "face": "South"}, {"id": "G5-W02", "face": "South"}, {"id": "G5-W03", "face": "South"}, {"id": "G5-W04", "face": "South"}, {"id": "G5-W05", "face": "South"}, {"id": "G5-W06", "face": "South"}], "U2": [{"id": "U2-01", "face": "South"}, {"id": "U2-02", "face": "South"}, {"id": "U2-03", "face": "South"}, {"id": "U2-04", "face": "South"}, {"id": "U2-05", "face": "South"}], "U4": [{"id": "U4-W01", "face": "South"}, {"id": "U4-W02", "face": "South"}, {"id": "U4-W03", "face": "South"}, {"id": "U4-W04", "face": "South"}, {"id": "U4-W05", "face": "South"}, {"id": "U4-W06", "face": "South"}, {"id": "U4-W07", "face": "South"}, {"id": "U4-W08", "face": "South"}, {"id": "U4-W09", "face": "South"}, {"id": "U4-W10", "face": "South"}, {"id": "U4-W11", "face": "South"}], "U6": [{"id": "U6-01", "face": "South"}, {"id": "U6-02", "face": "South"}, {"id": "U6-03", "face": "South"}, {"id": "U6-04", "face": "South"}, {"id": "U6-05", "face": "South"}, {"id": "U6-06", "face": "South"}, {"id": "U6-07", "face": "South"}, {"id": "U6-08", "face": "South"}, {"id": "U6-09", "face": "South"}, {"id": "U6-10", "face": "South"}, {"id": "U6-11", "face": "South"}]}, "RS&LS": {"Launching Shaft": [{"id": "G4-E01", "face": "East"}, {"id": "G4-E02", "face": "East"}, {"id": "G4-E03", "face": "East"}, {"id": "G4-E04", "face": "East"}, {"id": "G4-E05", "face": "East"}, {"id": "G4-E06", "face": "East"}, {"id": "G4-E07", "face": "East"}, {"id": "G4-E08", "face": "East"}, {"id": "G4-E09", "face": "East"}, {"id": "G4-N01", "face": "North"}, {"id": "G4-N02", "face": "North"}, {"id": "G4-N03", "face": "North"}, {"id": "G4-N04", "face": "North"}, {"id": "G4-N05", "face": "North"}, {"id": "G4-N06", "face": "North"}, {"id": "G4-N07", "face": "North"}, {"id": "G4-N08", "face": "North"}, {"id": "G4-N09", "face": "North"}, {"id": "G4-S01", "face": "South"}, {"id": "G4-S02", "face": "South"}, {"id": "G4-S03", "face": "South"}, {"id": "G4-S04", "face": "South"}, {"id": "G4-S05", "face": "South"}, {"id": "G4-S06", "face": "South"}, {"id": "G4-S07", "face": "South"}, {"id": "G4-S08", "face": "South"}, {"id": "G4-S09", "face": "South"}, {"id": "G4-S10", "face": "South"}, {"id": "G4-S11", "face": "South"}, {"id": "G4-S12", "face": "South"}, {"id": "G4-W01", "face": "West"}, {"id": "G4-W02", "face": "West"}, {"id": "G4-W03", "face": "West"}, {"id": "G4-W04", "face": "West"}, {"id": "G4-W05", "face": "West"}, {"id": "G4-W06", "face": "West"}, {"id": "G4-W07", "face": "West"}, {"id": "G4-W08", "face": "West"}, {"id": "G4-W09", "face": "West"}, {"id": "G4-W10", "face": "West"}, {"id": "G4-W11", "face": "West"}, {"id": "G4-W12", "face": "West"}, {"id": "G6-W01", "face": "West"}], "Receiving Shaft": [{"id": "G1-E05", "face": "East"}, {"id": "G1-W04", "face": "West"}, {"id": "G5-E01", "face": "East"}, {"id": "G5-E02", "face": "East"}, {"id": "G5-E03", "face": "East"}, {"id": "G5-E04", "face": "East"}, {"id": "G5-E05", "face": "East"}, {"id": "G5-E06", "face": "East"}, {"id": "G5-E07", "face": "East"}, {"id": "G5-E08", "face": "East"}, {"id": "G5-N01", "face": "North"}, {"id": "G5-N02", "face": "North"}, {"id": "G5-N03", "face": "North"}, {"id": "G5-N04", "face": "North"}, {"id": "G5-N05", "face": "North"}, {"id": "G5-N06", "face": "North"}, {"id": "G5-N07", "face": "North"}, {"id": "G5-N08", "face": "North"}, {"id": "G5-N09", "face": "North"}, {"id": "G5-N10", "face": "North"}, {"id": "G5-N11", "face": "North"}, {"id": "G5-N12", "face": "North"}, {"id": "G5-S01", "face": "South"}, {"id": "G5-S02", "face": "South"}, {"id": "G5-S03", "face": "South"}, {"id": "G5-S04", "face": "South"}, {"id": "G5-S05", "face": "South"}, {"id": "G5-S06", "face": "South"}, {"id": "G5-S07", "face": "South"}, {"id": "G5-S08", "face": "South"}, {"id": "G5-S09", "face": "South"}, {"id": "G5-W01", "face": "West"}, {"id": "G5-W02", "face": "West"}, {"id": "G5-W03", "face": "West"}, {"id": "G5-W04", "face": "West"}, {"id": "G5-W05", "face": "West"}, {"id": "G5-W06", "face": "West"}]}, "SB": {"F1a": [{"id": "F1-E01", "face": "East"}, {"id": "F1-E02", "face": "East"}, {"id": "F1-E03", "face": "East"}, {"id": "F1-E04", "face": "East"}, {"id": "F1-E05", "face": "East"}, {"id": "F1-E06", "face": "East"}, {"id": "F1-E07", "face": "East"}, {"id": "F1-E08", "face": "East"}, {"id": "F1-W01", "face": "West"}, {"id": "F1-W02", "face": "West"}, {"id": "F1-W03", "face": "West"}, {"id": "F1-W04", "face": "West"}], "F1b": [{"id": "F1-E09", "face": "East"}, {"id": "F1-E10", "face": "East"}, {"id": "F1-E11", "face": "East"}, {"id": "F1-W05", "face": "West"}, {"id": "F1-W06", "face": "West"}], "F2a": [{"id": "F2-E01", "face": "East"}, {"id": "F2-E02", "face": "East"}, {"id": "F2-E04", "face": "East"}, {"id": "F2-E05", "face": "East"}, {"id": "F2-E06", "face": "East"}, {"id": "F2-E07", "face": "East"}, {"id": "F2-E08", "face": "East"}, {"id": "F2-E09", "face": "East"}, {"id": "F2-W01", "face": "West"}, {"id": "F2-W02", "face": "West"}, {"id": "F2-W03", "face": "West"}, {"id": "F2-W04", "face": "West"}, {"id": "F2-W05", "face": "West"}, {"id": "F2-W06", "face": "West"}, {"id": "F2-W08", "face": "West"}], "F2b": [{"id": "F2-E10", "face": "East"}, {"id": "F2-E11", "face": "East"}, {"id": "F2-E12", "face": "East"}, {"id": "F2-E13", "face": "East"}, {"id": "F2-E14", "face": "East"}, {"id": "F2-E15", "face": "East"}, {"id": "F2-E16", "face": "East"}, {"id": "F2-W09", "face": "West"}, {"id": "F2-W10", "face": "West"}, {"id": "F2-W11", "face": "West"}, {"id": "F2-W12", "face": "West"}, {"id": "F2-W13", "face": "West"}], "F2c": [{"id": "F2-E17", "face": "East"}, {"id": "F2-E18", "face": "East"}, {"id": "F2-E19", "face": "East"}, {"id": "F2-E20", "face": "East"}, {"id": "F2-E21", "face": "East"}, {"id": "F2-E22", "face": "East"}, {"id": "F2-E23", "face": "East"}, {"id": "F2-E24", "face": "East"}, {"id": "F2-E25", "face": "East"}, {"id": "F2-E26", "face": "East"}, {"id": "F2-E27", "face": "East"}, {"id": "F2-W14", "face": "West"}, {"id": "F2-W15", "face": "West"}, {"id": "F2-W16", "face": "West"}, {"id": "F2-W17", "face": "West"}, {"id": "F2-W18", "face": "West"}], "G1": [{"id": "G1-E01", "face": "East"}, {"id": "G1-E02", "face": "East"}, {"id": "G1-E03", "face": "East"}, {"id": "G1-E04", "face": "East"}, {"id": "G1-E05", "face": "East"}, {"id": "G1-W01", "face": "West"}, {"id": "G1-W02", "face": "West"}, {"id": "G1-W03", "face": "West"}, {"id": "G1-W04", "face": "West"}], "G6a": [{"id": "G4-N08", "face": "East"}, {"id": "G6-E01", "face": "East"}, {"id": "G6-E02", "face": "East"}, {"id": "G6-E03", "face": "East"}, {"id": "G6-E04", "face": "East"}, {"id": "G6-E05", "face": "East"}, {"id": "G6-E06", "face": "East"}, {"id": "G6-E07", "face": "East"}, {"id": "G6-W01", "face": "West"}, {"id": "G6-W02", "face": "West"}, {"id": "G6-W03", "face": "West"}, {"id": "G6-W04", "face": "West"}, {"id": "G6-W05", "face": "West"}, {"id": "G6-W06", "face": "West"}, {"id": "G6-W07", "face": "West"}, {"id": "G6-W08", "face": "West"}, {"id": "G6-W09", "face": "West"}, {"id": "G6-W10", "face": "West"}], "G6b": [{"id": "G6-W11", "face": "West"}, {"id": "G6-W12", "face": "West"}, {"id": "G6-W13", "face": "West"}, {"id": "G6-W14", "face": "West"}, {"id": "G6-W15", "face": "West"}, {"id": "G6-W16A", "face": "West"}, {"id": "G6-W16B", "face": "West"}, {"id": "G6-W17", "face": "West"}, {"id": "G6-W18", "face": "West"}], "G6b1": [{"id": "G6-E08", "face": "East"}, {"id": "G6-E09", "face": "East"}, {"id": "G6-E10", "face": "East"}, {"id": "G6-E11", "face": "East"}], "G6b2": [{"id": "G6-E12", "face": "East"}, {"id": "G6-E13", "face": "East"}], "G7": [{"id": "G7-E01", "face": "East"}, {"id": "G7-E02", "face": "East"}, {"id": "G7-E03", "face": "East"}, {"id": "G7-E04", "face": "East"}, {"id": "G7-E05", "face": "East"}, {"id": "G7-E06", "face": "East"}, {"id": "G7-E07", "face": "East"}, {"id": "G7-E08", "face": "East"}, {"id": "G7-E09", "face": "East"}, {"id": "G7-E10", "face": "East"}, {"id": "G7-E11", "face": "East"}, {"id": "G7-E12", "face": "East"}, {"id": "G7-E13", "face": "East"}, {"id": "G7-E14", "face": "East"}, {"id": "G7-E15", "face": "East"}, {"id": "G7-E16", "face": "East"}, {"id": "G7-E17", "face": "East"}, {"id": "G7-E18", "face": "East"}, {"id": "G7-E19", "face": "East"}, {"id": "G7-E20", "face": "East"}, {"id": "G7-E21", "face": "East"}, {"id": "G7-E22", "face": "East"}, {"id": "G7-E23", "face": "East"}, {"id": "G7-E24", "face": "East"}], "G7a": [{"id": "G7-W01", "face": "West"}, {"id": "G7-W01A", "face": "West"}, {"id": "G7-W02", "face": "West"}, {"id": "G7-W03", "face": "West"}, {"id": "G7-W04", "face": "West"}, {"id": "G7-W05", "face": "West"}, {"id": "G7-W06", "face": "West"}, {"id": "G7-W07", "face": "West"}, {"id": "G7-W08", "face": "West"}, {"id": "G7-W09", "face": "West"}, {"id": "G7-W10", "face": "West"}, {"id": "G7-W11", "face": "West"}, {"id": "G7-W12", "face": "West"}, {"id": "G7-W13", "face": "West"}, {"id": "G7-W14", "face": "West"}, {"id": "G7-W15", "face": "West"}, {"id": "G7-W16", "face": "West"}, {"id": "G7-W17", "face": "West"}, {"id": "G7-W18", "face": "West"}], "G7b": [{"id": "G7-W19", "face": "West"}, {"id": "G7-W20", "face": "West"}, {"id": "G7-W21", "face": "West"}, {"id": "G7-W22", "face": "West"}, {"id": "G7-W23", "face": "West"}, {"id": "G7-W24", "face": "West"}, {"id": "G7-W25", "face": "West"}, {"id": "G7-W26", "face": "West"}, {"id": "G7-W27", "face": "West"}, {"id": "G7-W28", "face": "West"}, {"id": "G7-W29", "face": "West"}, {"id": "G7-W30", "face": "West"}, {"id": "G7-W31", "face": "West"}, {"id": "G7-W32", "face": "West"}, {"id": "G7-W33", "face": "West"}], "H1a1": [{"id": "H1-E01", "face": "East"}, {"id": "H1-E02", "face": "East"}, {"id": "H1-E03", "face": "East"}, {"id": "H1-E04", "face": "East"}, {"id": "H1-W01", "face": "West"}, {"id": "H1-W02", "face": "West"}, {"id": "H1-W03", "face": "West"}, {"id": "H1-W04", "face": "West"}], "H1a2": [{"id": "H1-E05", "face": "East"}, {"id": "H1-E06", "face": "East"}, {"id": "H1-E07", "face": "East"}, {"id": "H1-E08", "face": "East"}, {"id": "H1-E09", "face": "East"}, {"id": "H1-E10", "face": "East"}, {"id": "H1-E11", "face": "East"}, {"id": "H1-E12", "face": "East"}, {"id": "H1-E13", "face": "East"}, {"id": "H1-E14", "face": "East"}, {"id": "H1-W05", "face": "West"}, {"id": "H1-W06", "face": "West"}, {"id": "H1-W07", "face": "West"}, {"id": "H1-W08", "face": "West"}, {"id": "H1-W09", "face": "West"}, {"id": "H1-W10", "face": "West"}, {"id": "H1-W11", "face": "West"}, {"id": "H1-W12", "face": "West"}, {"id": "H1-W13", "face": "West"}, {"id": "H1-W14", "face": "West"}], "H1b": [{"id": "H1-E15", "face": "East"}, {"id": "H1-E16", "face": "East"}, {"id": "H1-E17", "face": "East"}, {"id": "H1-E18", "face": "East"}, {"id": "H1-E19", "face": "East"}, {"id": "H1-E20", "face": "East"}, {"id": "H1-E21", "face": "East"}, {"id": "H1b-W01", "face": "West"}, {"id": "H1b-W02", "face": "West"}, {"id": "H1b-W03", "face": "West"}, {"id": "H1b-W04", "face": "West"}, {"id": "H1b-W05", "face": "West"}, {"id": "H1b-W06", "face": "West"}, {"id": "H1b-W07", "face": "West"}], "H2a": [{"id": "H2-E01", "face": "East"}, {"id": "H2-E02", "face": "East"}, {"id": "H2-E03", "face": "East"}, {"id": "H2-E05", "face": "East"}, {"id": "H2a-W01", "face": "West"}, {"id": "H2a-W02", "face": "West"}, {"id": "H2a-W03", "face": "West"}, {"id": "H2a-W04", "face": "West"}, {"id": "H2a-W05", "face": "West"}], "H2b": [{"id": "H2-E06", "face": "East"}, {"id": "H2-E08", "face": "East"}, {"id": "H2-E09", "face": "East"}, {"id": "H2-E10", "face": "East"}, {"id": "H2-E11", "face": "East"}, {"id": "H2-E12", "face": "East"}, {"id": "H2-E13", "face": "East"}, {"id": "H2-E14", "face": "East"}, {"id": "H2-E15", "face": "East"}, {"id": "H2-E16", "face": "East"}, {"id": "H2b-W01", "face": "West"}, {"id": "H2b-W02", "face": "West"}, {"id": "H2b-W03", "face": "West"}, {"id": "H2b-W04", "face": "West"}, {"id": "H2b-W05", "face": "West"}, {"id": "H2b-W06", "face": "West"}, {"id": "H2b-W07", "face": "West"}, {"id": "H2b-W08", "face": "West"}, {"id": "H2b-W09", "face": "West"}, {"id": "H2b-W10", "face": "West"}, {"id": "H2b-W11", "face": "West"}], "H2c1": [{"id": "H2-E17", "face": "East"}, {"id": "H2-E18", "face": "East"}, {"id": "H2-E19", "face": "East"}, {"id": "H2-E20", "face": "East"}, {"id": "H2-E21", "face": "East"}, {"id": "H2-E22", "face": "East"}, {"id": "H2-E23", "face": "East"}, {"id": "H2c1-W01", "face": "West"}, {"id": "H2c1-W02", "face": "West"}, {"id": "H2c1-W03", "face": "West"}, {"id": "H2c1-W04", "face": "West"}, {"id": "H2c1-W05", "face": "West"}, {"id": "H2c1-W06", "face": "West"}, {"id": "H2c1-W07", "face": "West"}, {"id": "H2c1-W08", "face": "West"}], "H2c2": [{"id": "H2-E24", "face": "East"}, {"id": "H2-E25", "face": "East"}, {"id": "H2-E26", "face": "East"}, {"id": "H2c2-W01", "face": "West"}, {"id": "H2c2-W02", "face": "West"}, {"id": "H2c2-W03", "face": "West"}], "J1": [{"id": "J1-E01", "face": "East"}, {"id": "J1-E02", "face": "East"}, {"id": "J1-E03", "face": "East"}, {"id": "J1-E04", "face": "East"}, {"id": "J1-E05", "face": "East"}, {"id": "J1-E06", "face": "East"}, {"id": "J1-E07", "face": "East"}, {"id": "J1-E08", "face": "East"}, {"id": "J1-W02", "face": "West"}, {"id": "J1-W03", "face": "West"}, {"id": "J1-W04", "face": "West"}, {"id": "J1-W05", "face": "West"}, {"id": "J1-W06", "face": "West"}, {"id": "J1-W07", "face": "West"}, {"id": "J1-W08", "face": "West"}], "J2": [{"id": "J2-E01", "face": "East"}, {"id": "J2-E02", "face": "East"}, {"id": "J2-E03", "face": "East"}, {"id": "J2-E04", "face": "East"}, {"id": "J2-E05", "face": "East"}, {"id": "J2-E06", "face": "East"}, {"id": "J2-E07", "face": "East"}, {"id": "J2-E08", "face": "East"}, {"id": "J2-E09", "face": "East"}, {"id": "J2-E10", "face": "East"}, {"id": "J2-E11", "face": "East"}, {"id": "J2-E12", "face": "East"}, {"id": "J2-E13", "face": "East"}, {"id": "J2-E14", "face": "East"}, {"id": "J2-E15", "face": "East"}, {"id": "J2-E16", "face": "East"}, {"id": "J2-E17", "face": "East"}, {"id": "J2-E18", "face": "East"}, {"id": "J2-E19", "face": "East"}, {"id": "J2-E20", "face": "East"}, {"id": "J2-E21", "face": "East"}, {"id": "J2-E22", "face": "East"}, {"id": "J2-E23", "face": "East"}, {"id": "J2-E24", "face": "East"}, {"id": "J2-E25", "face": "East"}, {"id": "J2-E26", "face": "East"}, {"id": "J2-E27", "face": "East"}, {"id": "J2-E28", "face": "East"}, {"id": "J2-E29", "face": "East"}, {"id": "J2-E30", "face": "East"}, {"id": "J2-E31", "face": "East"}, {"id": "J2-E32", "face": "East"}, {"id": "J2-E33", "face": "East"}, {"id": "J2-E34", "face": "East"}, {"id": "J2-E35", "face": "East"}, {"id": "J2-E36", "face": "East"}, {"id": "J2-E37", "face": "East"}, {"id": "J2-E38", "face": "East"}, {"id": "J2-W01", "face": "West"}, {"id": "J2-W02", "face": "West"}, {"id": "J2-W03", "face": "West"}, {"id": "J2-W04", "face": "West"}, {"id": "J2-W05", "face": "West"}, {"id": "J2-W06", "face": "West"}, {"id": "J2-W07", "face": "West"}, {"id": "J2-W08", "face": "West"}, {"id": "J2-W09", "face": "West"}, {"id": "J2-W10", "face": "West"}, {"id": "J2-W11", "face": "West"}, {"id": "J2-W12", "face": "West"}, {"id": "J2-W13", "face": "West"}, {"id": "J2-W14", "face": "West"}, {"id": "J2-W15", "face": "West"}, {"id": "J2-W16", "face": "West"}, {"id": "J2-W17", "face": "West"}, {"id": "J2-W18", "face": "West"}, {"id": "J2-W19", "face": "West"}, {"id": "J2-W20", "face": "West"}, {"id": "J2-W21", "face": "West"}, {"id": "J2-W22", "face": "West"}, {"id": "J2-W23", "face": "West"}, {"id": "J2-W24", "face": "West"}, {"id": "J2-W25", "face": "West"}, {"id": "J2-W26", "face": "West"}, {"id": "J2-W27", "face": "West"}, {"id": "J2-W28", "face": "West"}, {"id": "J2-W29", "face": "West"}, {"id": "J2-W30", "face": "West"}, {"id": "J2-W31", "face": "West"}, {"id": "J2-W32", "face": "West"}, {"id": "J2-W33", "face": "West"}, {"id": "J2-W34", "face": "West"}, {"id": "J2-W35", "face": "West"}, {"id": "J2-W36", "face": "West"}, {"id": "J2-W37", "face": "West"}], "J3": [{"id": "J3-E01", "face": "East"}, {"id": "J3-E02", "face": "East"}, {"id": "J3-E03", "face": "East"}, {"id": "J3-E04", "face": "East"}, {"id": "J3-W01", "face": "West"}, {"id": "J3-W02", "face": "West"}, {"id": "J3-W03", "face": "West"}, {"id": "J3-W04", "face": "West"}, {"id": "J3-W05", "face": "West"}]}, "UPN_B1": {"G6a": [{"id": "G4-N01", "face": "West"}, {"id": "G6-W01", "face": "West"}, {"id": "G6-W02", "face": "West"}, {"id": "G6-W03", "face": "West"}, {"id": "G6-W04", "face": "West"}, {"id": "G6-W05", "face": "West"}, {"id": "G6-W06", "face": "West"}, {"id": "G6-W07", "face": "West"}, {"id": "G6-W08", "face": "West"}, {"id": "G6-W09", "face": "West"}, {"id": "G6-W10", "face": "West"}, {"id": "G6-W11", "face": "West"}, {"id": "G6-W12", "face": "West"}, {"id": "G6-W13", "face": "West"}, {"id": "G6-W14", "face": "West"}, {"id": "G6-W15", "face": "West"}, {"id": "G6-W16", "face": "West"}, {"id": "G6-W17", "face": "West"}, {"id": "G6-W18", "face": "West"}, {"id": "U9-W01", "face": "West"}], "G7": [{"id": "G7-W01", "face": "West"}, {"id": "G7-W01a", "face": "West"}, {"id": "G7-W02", "face": "West"}, {"id": "G7-W03", "face": "West"}, {"id": "G7-W04", "face": "West"}, {"id": "G7-W05", "face": "West"}, {"id": "G7-W06", "face": "West"}, {"id": "G7-W07", "face": "West"}, {"id": "G7-W08", "face": "West"}, {"id": "G7-W09", "face": "West"}, {"id": "G7-W10", "face": "West"}, {"id": "G7-W11", "face": "West"}, {"id": "G7-W12", "face": "West"}, {"id": "G7-W13", "face": "West"}, {"id": "G7-W14", "face": "West"}, {"id": "G7-W15", "face": "West"}, {"id": "G7-W16", "face": "West"}, {"id": "G7-W17", "face": "West"}, {"id": "G7-W18", "face": "West"}], "H2b": [{"id": "H2b-W01", "face": "West"}, {"id": "H2b-W02", "face": "West"}, {"id": "H2b-W03", "face": "West"}, {"id": "H2b-W04", "face": "West"}, {"id": "H2b-W05", "face": "West"}, {"id": "H2b-W06", "face": "West"}, {"id": "H2b-W07", "face": "West"}, {"id": "H2b-W08", "face": "West"}, {"id": "H2b-W09", "face": "West"}, {"id": "H2b-W10", "face": "West"}, {"id": "H2b-W11", "face": "West"}], "H2c1": [{"id": "H2c1-W08", "face": "West"}], "H2c2": [{"id": "H2c2-W01", "face": "West"}, {"id": "H2c2-W02", "face": "West"}, {"id": "H2c2-W03", "face": "West"}], "Launching Shaft": [{"id": "G4-E01", "face": "East"}, {"id": "G4-E02", "face": "East"}, {"id": "G4-E03", "face": "East"}, {"id": "G4-E04", "face": "East"}, {"id": "G4-E05", "face": "East"}, {"id": "G4-E06", "face": "East"}, {"id": "G4-E07", "face": "East"}, {"id": "G4-E08", "face": "East"}, {"id": "G4-E09", "face": "East"}, {"id": "G4-N07", "face": "East"}, {"id": "G4-N08", "face": "East"}, {"id": "G4-N09", "face": "East"}, {"id": "G4-S01", "face": "West"}, {"id": "G4-S02", "face": "West"}, {"id": "G4-S03", "face": "West"}, {"id": "G4-S10", "face": "East"}, {"id": "G4-S11", "face": "East"}, {"id": "G4-S12", "face": "East"}, {"id": "G4-W01", "face": "West"}, {"id": "G4-W02", "face": "West"}, {"id": "G4-W03", "face": "West"}, {"id": "G4-W04", "face": "West"}, {"id": "G4-W05", "face": "West"}, {"id": "G4-W06", "face": "West"}, {"id": "G4-W07", "face": "West"}, {"id": "G4-W08", "face": "West"}, {"id": "G4-W09", "face": "West"}, {"id": "G4-W10", "face": "West"}, {"id": "G4-W11", "face": "West"}, {"id": "G4-W12", "face": "West"}], "Receiving Shaft": [{"id": "G1-E05", "face": "East"}, {"id": "G5-E01", "face": "East"}, {"id": "G5-E02", "face": "East"}, {"id": "G5-E03", "face": "East"}, {"id": "G5-E04", "face": "East"}, {"id": "G5-E05", "face": "East"}, {"id": "G5-E06", "face": "East"}, {"id": "G5-E07", "face": "East"}, {"id": "G5-E08", "face": "East"}, {"id": "G5-N01", "face": "West"}, {"id": "G5-N02", "face": "West"}, {"id": "G5-N03", "face": "West"}, {"id": "G5-N10", "face": "East"}, {"id": "G5-N11", "face": "East"}, {"id": "G5-N12", "face": "East"}, {"id": "G5-S09", "face": "East"}, {"id": "G5-W01", "face": "West"}, {"id": "G5-W02", "face": "West"}, {"id": "G5-W03", "face": "West"}, {"id": "G5-W04", "face": "West"}, {"id": "G5-W05", "face": "West"}, {"id": "G5-W06", "face": "West"}], "U2": [{"id": "G1-E01", "face": "East"}, {"id": "H2-E24", "face": "East"}, {"id": "H2-E25", "face": "East"}, {"id": "H2-E26", "face": "East"}, {"id": "U2-01", "face": "East"}, {"id": "U2-02", "face": "East"}, {"id": "U2-03", "face": "East"}, {"id": "U2-04", "face": "East"}, {"id": "U2-05", "face": "East"}], "U4": [{"id": "U4-W01", "face": "West"}, {"id": "U4-W02", "face": "West"}, {"id": "U4-W03", "face": "West"}, {"id": "U4-W04", "face": "West"}, {"id": "U4-W05", "face": "West"}, {"id": "U4-W06", "face": "West"}, {"id": "U4-W07", "face": "West"}, {"id": "U4-W08", "face": "West"}, {"id": "U4-W09", "face": "West"}, {"id": "U4-W10", "face": "West"}, {"id": "U4-W11", "face": "West"}], "U6": [{"id": "U6-01", "face": "West"}, {"id": "U6-02", "face": "West"}, {"id": "U6-03", "face": "West"}, {"id": "U6-04", "face": "West"}, {"id": "U6-05", "face": "West"}, {"id": "U6-06", "face": "West"}, {"id": "U6-07", "face": "West"}, {"id": "U6-08", "face": "West"}, {"id": "U6-09", "face": "West"}, {"id": "U6-10", "face": "West"}, {"id": "U6-11", "face": "West"}], "U8": [{"id": "U8-W01A", "face": "West"}, {"id": "U8-W01B", "face": "West"}, {"id": "U8-W02", "face": "West"}, {"id": "U8-W03", "face": "West"}, {"id": "U8-W04", "face": "West"}]}, "UPN_B2": {"G1": [{"id": "G1-E02", "face": "South"}, {"id": "G1-E03", "face": "South"}, {"id": "G1-E04", "face": "South"}, {"id": "G1-E05", "face": "South"}], "G6a": [{"id": "G6-W02", "face": "North"}, {"id": "G6-W03", "face": "North"}, {"id": "G6-W04", "face": "North"}, {"id": "G6-W05", "face": "North"}, {"id": "G6-W06", "face": "North"}, {"id": "G6-W07", "face": "North"}, {"id": "G6-W08", "face": "North"}, {"id": "G6-W09", "face": "North"}, {"id": "G6-W10", "face": "North"}, {"id": "U9-W01", "face": "North"}], "H2b": [{"id": "H2b-W01", "face": "South"}, {"id": "H2b-W02", "face": "South"}, {"id": "H2b-W03", "face": "South"}, {"id": "H2b-W04", "face": "South"}, {"id": "H2b-W05", "face": "South"}, {"id": "H2b-W06", "face": "South"}, {"id": "H2b-W07", "face": "South"}, {"id": "H2b-W08", "face": "South"}, {"id": "H2b-W09", "face": "South"}, {"id": "H2b-W10", "face": "South"}, {"id": "H2b-W11", "face": "South"}], "H2c1": [{"id": "H2c1-W08", "face": "South"}], "H2c2": [{"id": "H2c2-W01", "face": "South"}, {"id": "H2c2-W02", "face": "South"}, {"id": "H2c2-W03", "face": "South"}], "Launching Shaft": [{"id": "G4-E01", "face": "North"}, {"id": "G4-E02", "face": "North"}, {"id": "G4-E03", "face": "North"}, {"id": "G4-E04", "face": "North"}, {"id": "G4-E05", "face": "North"}, {"id": "G4-E06", "face": "North"}, {"id": "G4-E07", "face": "North"}, {"id": "G4-E08", "face": "North"}, {"id": "G4-E09", "face": "North"}, {"id": "G4-N01", "face": "North"}, {"id": "G4-N02", "face": "North"}, {"id": "G4-N03", "face": "North"}, {"id": "G4-N04", "face": "North"}, {"id": "G4-N05", "face": "North"}, {"id": "G4-N06", "face": "North"}, {"id": "G4-N07", "face": "North"}, {"id": "G4-N08", "face": "North"}, {"id": "G4-N09", "face": "North"}, {"id": "G4-S01", "face": "North"}, {"id": "G4-S02", "face": "North"}, {"id": "G4-S03", "face": "North"}, {"id": "G4-S04", "face": "North"}, {"id": "G4-S05", "face": "North"}, {"id": "G4-S06", "face": "North"}, {"id": "G4-S07", "face": "North"}, {"id": "G4-S08", "face": "North"}, {"id": "G4-S09", "face": "North"}, {"id": "G4-S10", "face": "North"}, {"id": "G4-S11", "face": "North"}, {"id": "G4-S12", "face": "North"}, {"id": "G4-W01", "face": "North"}, {"id": "G4-W02", "face": "North"}, {"id": "G4-W03", "face": "North"}, {"id": "G4-W04", "face": "North"}, {"id": "G4-W12", "face": "North"}, {"id": "G6-W01", "face": "North"}], "Receiving Shaft": [{"id": "G5-E01", "face": "South"}, {"id": "G5-E02", "face": "South"}, {"id": "G5-E03", "face": "South"}, {"id": "G5-E04", "face": "South"}, {"id": "G5-E05", "face": "South"}, {"id": "G5-E06", "face": "South"}, {"id": "G5-E07", "face": "South"}, {"id": "G5-E08", "face": "South"}, {"id": "G5-N01", "face": "South"}, {"id": "G5-N02", "face": "South"}, {"id": "G5-N03", "face": "South"}, {"id": "G5-N04", "face": "South"}, {"id": "G5-N05", "face": "South"}, {"id": "G5-N06", "face": "South"}, {"id": "G5-N07", "face": "South"}, {"id": "G5-N08", "face": "South"}, {"id": "G5-N09", "face": "South"}, {"id": "G5-N10", "face": "South"}, {"id": "G5-N11", "face": "South"}, {"id": "G5-N12", "face": "South"}, {"id": "G5-W01", "face": "South"}, {"id": "G5-W02", "face": "South"}, {"id": "G5-W03", "face": "South"}, {"id": "G5-W04", "face": "South"}, {"id": "G5-W05", "face": "South"}, {"id": "G5-W06", "face": "South"}], "U2": [{"id": "G1-E01", "face": "South"}, {"id": "H2-E24", "face": "South"}, {"id": "U2-01", "face": "South"}, {"id": "U2-02", "face": "South"}, {"id": "U2-03", "face": "South"}, {"id": "U2-04", "face": "South"}, {"id": "U2-05", "face": "South"}], "U4": [{"id": "U4-W01", "face": "South"}, {"id": "U4-W02", "face": "South"}, {"id": "U4-W03", "face": "South"}, {"id": "U4-W04", "face": "South"}, {"id": "U4-W05", "face": "South"}, {"id": "U4-W06", "face": "South"}, {"id": "U4-W07", "face": "South"}, {"id": "U4-W08", "face": "South"}, {"id": "U4-W09", "face": "South"}, {"id": "U4-W10", "face": "South"}, {"id": "U4-W11", "face": "South"}], "U6": [{"id": "U6-01", "face": "South"}, {"id": "U6-02", "face": "South"}, {"id": "U6-03", "face": "South"}, {"id": "U6-04", "face": "South"}, {"id": "U6-05", "face": "South"}, {"id": "U6-06", "face": "South"}, {"id": "U6-07", "face": "South"}, {"id": "U6-08", "face": "South"}, {"id": "U6-09", "face": "South"}, {"id": "U6-10", "face": "South"}, {"id": "U6-11", "face": "South"}]}};
+let state={level:'',section:'',panelId:'',grade:null,zones:[],type:'',inspectors:[],photoTimestamps:[]};
+let entries=JSON.parse(localStorage.getItem('panel_inspections')||'[]');
+const DEFAULT_INSPECTORS=['LTA EPE Jasper','LTA EPE Zaw'];
+let inspectors=JSON.parse(localStorage.getItem('panel_inspectors')||'null')||[...DEFAULT_INSPECTORS];
+
+// Offline indicator
+function updateOnlineStatus(){
+const badge=document.getElementById('offlineBadge');
+if(navigator.onLine){badge.textContent='ONLINE';badge.style.background='var(--g0)';}
+else{badge.textContent='OFFLINE';badge.style.background='var(--g2)';}
+}
+window.addEventListener('online',updateOnlineStatus);
+window.addEventListener('offline',updateOnlineStatus);
+updateOnlineStatus();
+
+function showTab(t){
+document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('on',['record','saved','export'][i]===t));
+document.querySelectorAll('.screen').forEach((el,i)=>el.classList.toggle('on',['s-record','s-saved','s-export'][i]===('s-'+t)));
+if(t==='saved')renderSaved();
+updateCounts();
+}
+
+function initLevels(){
+const g=document.getElementById('levelGroup');
+Object.keys(PANELS).sort().forEach(lv=>{
+const b=document.createElement('div');b.className='sel-btn';b.textContent=lv;
+b.onclick=()=>selectLevel(lv);g.appendChild(b);
+});
+}
+function selectLevel(lv){
+if(state.level===lv){
+state.level='';state.section='';state.panelId='';
+document.querySelectorAll('#levelGroup .sel-btn').forEach(b=>b.classList.remove('on'));
+document.getElementById('sectionGroup').innerHTML='';
+document.getElementById('panelList').innerHTML='';
+}else{
+state.level=lv;state.section='';state.panelId='';
+document.querySelectorAll('#levelGroup .sel-btn').forEach(b=>b.classList.toggle('on',b.textContent===lv));
+renderSections();
+}
+document.getElementById('panelList').innerHTML='';
+checkSave();
+}
+
+function renderSections(){
+const g=document.getElementById('sectionGroup');g.innerHTML='';
+if(!state.level||!PANELS[state.level])return;
+Object.keys(PANELS[state.level]).forEach(sec=>{
+const b=document.createElement('div');b.className='sel-btn';b.textContent=sec;
+b.onclick=()=>selectSection(sec);g.appendChild(b);
+});
+}
+function selectSection(sec){
+if(state.section===sec){
+state.section='';state.panelId='';
+document.querySelectorAll('#sectionGroup .sel-btn').forEach(b=>b.classList.remove('on'));
+document.getElementById('panelList').innerHTML='';
+}else{
+state.section=sec;state.panelId='';
+document.querySelectorAll('#sectionGroup .sel-btn').forEach(b=>b.classList.toggle('on',b.textContent===sec));
+renderPanels();
+}
+checkSave();
+}
+
+function renderPanels(){
+const list=document.getElementById('panelList');list.innerHTML='';
+if(!state.level||!state.section)return;
+const panels=PANELS[state.level][state.section]||[];
+panels.forEach(p=>{
+const d=document.createElement('div');d.className='panel-item';
+d.innerHTML=`<span>${p.id}</span><span class="face">${p.face}</span>`;
+d.onclick=()=>selectPanel(p.id,d);list.appendChild(d);
+});
+document.getElementById('panelSearch').value='';
+}
+function selectPanel(pid,el){
+if(state.panelId===pid){
+state.panelId='';
+document.querySelectorAll('.panel-item').forEach(d=>d.classList.remove('selected'));
+}else{
+state.panelId=pid;
+document.querySelectorAll('.panel-item').forEach(d=>d.classList.remove('selected'));
+if(el)el.classList.add('selected');
+}
+checkSave();
+}
+function filterPanels(){
+const q=document.getElementById('panelSearch').value.toLowerCase();
+document.querySelectorAll('.panel-item').forEach(d=>{
+d.style.display=d.textContent.toLowerCase().includes(q)?'flex':'none';
+});
+}
+
+function setGrade(g){
+state.grade=state.grade===g?null:g;
+document.querySelectorAll('.grade-btn').forEach((b,i)=>b.classList.toggle('on',i===state.grade));
+checkSave();
+}
+
+function toggleChip(el){
+el.classList.toggle('on');
+state.zones=Array.from(document.querySelectorAll('.chip.on')).map(c=>c.textContent);
+}
+
+function toggleType(el){
+const wasOn=el.classList.contains('on');
+document.querySelectorAll('#typeGroup .sel-btn').forEach(b=>b.classList.remove('on'));
+if(!wasOn){
+el.classList.add('on');
+state.type=el.textContent==='Const. Joint'?'Construction Joint':el.textContent;
+}else{
+state.type='';
+}
+}
+
+function initInspectors(){
+const g=document.getElementById('inspectorGroup');
+g.innerHTML='';
+inspectors.forEach(name=>{
+const b=document.createElement('div');b.className='sel-btn';
+b.textContent=name;
+b.onclick=()=>toggleInspector(name);
+g.appendChild(b);
+});
+const addBtn=document.createElement('div');
+addBtn.className='sel-btn add-btn';
+addBtn.textContent='+ Add';
+addBtn.onclick=addInspector;
+g.appendChild(addBtn);
+if(state.inspectors.length){
+g.querySelectorAll('.sel-btn').forEach(b=>{
+if(state.inspectors.includes(b.textContent))b.classList.add('on');
+});
+}
+}
+function toggleInspector(name){
+const idx=state.inspectors.indexOf(name);
+if(idx>=0){
+state.inspectors.splice(idx,1);
+}else{
+state.inspectors.push(name);
+}
+document.querySelectorAll('#inspectorGroup .sel-btn:not(.add-btn)').forEach(b=>{
+b.classList.toggle('on',state.inspectors.includes(b.textContent));
+});
+checkSave();
+}
+function addInspector(){
+const name=prompt('Enter inspector name:');
+if(!name||!name.trim())return;
+const trimmed=name.trim();
+if(inspectors.includes(trimmed)){alert('Inspector already exists');return;}
+inspectors.push(trimmed);
+localStorage.setItem('panel_inspectors',JSON.stringify(inspectors));
+initInspectors();
+state.inspectors.push(trimmed);
+document.querySelectorAll('#inspectorGroup .sel-btn:not(.add-btn)').forEach(b=>{
+b.classList.toggle('on',state.inspectors.includes(b.textContent));
+});
+checkSave();
+}
+
+// Photo timestamps — no actual photo capture, just timestamp logging
+function logPhotoTimestamp(){
+const now=new Date();
+const ts=now.toISOString().slice(0,19).replace('T',' ');
+const label=now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+const dateLabel=now.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
+state.photoTimestamps.push({timestamp:ts,label:dateLabel+' '+label});
+renderPhotoList();
+}
+function renderPhotoList(){
+const list=document.getElementById('photoList');
+list.innerHTML='';
+state.photoTimestamps.forEach((p,i)=>{
+const div=document.createElement('div');div.className='photo-entry';
+div.innerHTML=`<span>&#128247; Photo ${i+1}</span>
+<span class="photo-time">${p.label}</span>
+<span class="photo-remove" onclick="removePhoto(${i})">&times;</span>`;
+list.appendChild(div);
+});
+document.getElementById('photoCountLabel').textContent=state.photoTimestamps.length;
+}
+function removePhoto(i){
+state.photoTimestamps.splice(i,1);
+renderPhotoList();
+}
+
+function checkSave(){
+const ok=state.level&&state.panelId&&state.grade!==null&&state.inspectors.length>0;
+document.getElementById('saveBtn').disabled=!ok;
+}
+
+function saveEntry(){
+const now=new Date();
+const entry={
+id:Date.now(),
+panel_id:state.panelId,
+level:state.level,
+date:now.toISOString().slice(0,10),
+time:now.toTimeString().slice(0,5),
+inspector:state.inspectors.join(', '),
+grade:state.grade,
+zones:state.zones.join(', '),
+type:state.type,
+notes:document.getElementById('notes').value,
+photos:state.photoTimestamps.length,
+photo_timestamps:state.photoTimestamps.map(p=>p.timestamp).join('; ')
+};
+entries.push(entry);
+localStorage.setItem('panel_inspections',JSON.stringify(entries));
+const flash=document.createElement('div');flash.className='success-flash';
+flash.innerHTML='<span>&#10003;</span>';document.body.appendChild(flash);
+setTimeout(()=>flash.remove(),800);
+resetForm();updateCounts();
+}
+
+function resetForm(){
+const keepLevel=state.level;
+const keepInspectors=state.inspectors.slice();
+state={level:keepLevel,section:'',panelId:'',grade:null,zones:[],type:'',inspectors:keepInspectors,photoTimestamps:[]};
+document.querySelectorAll('.grade-btn,.chip').forEach(b=>b.classList.remove('on'));
+document.querySelectorAll('#sectionGroup .sel-btn,.panel-item').forEach(b=>b.classList.remove('on','selected'));
+document.querySelectorAll('#typeGroup .sel-btn').forEach(b=>b.classList.remove('on'));
+document.getElementById('panelList').innerHTML='';
+document.getElementById('sectionGroup').innerHTML='';
+document.getElementById('notes').value='';
+document.getElementById('photoList').innerHTML='';
+document.getElementById('photoCountLabel').textContent='0';
+document.getElementById('saveBtn').disabled=true;
+if(state.level)renderSections();
+}
+
+function renderSaved(){
+const list=document.getElementById('savedList');list.innerHTML='';
+const noMsg=document.getElementById('noSaved');
+if(!entries.length){noMsg.style.display='block';return;}
+noMsg.style.display='none';
+const gc=['var(--g0)','var(--g1)','var(--g2)','var(--g3)','var(--g4)'];
+const gn=['Dry','Damp','Seepage','Flow','Jetting'];
+[...entries].reverse().forEach(e=>{
+const card=document.createElement('div');card.className='entry-card';
+let meta=`${e.level} &middot; ${e.date} ${e.time} &middot; ${e.inspector}`;
+if(e.zones)meta+=`<br>Zones: ${e.zones}`;
+if(e.type)meta+=`<br>Type: ${e.type}`;
+if(e.notes)meta+=`<br>Notes: ${e.notes}`;
+if(e.photos)meta+=`<br>&#128247; ${e.photos} photo(s)`;
+if(e.photo_timestamps)meta+=`<br><span style="font-size:10px;color:var(--teal)">Timestamps: ${e.photo_timestamps}</span>`;
+card.innerHTML=`<div class="pid">${e.panel_id} <span class="grade-tag" style="background:${gc[e.grade]}">${e.grade} ${gn[e.grade]}</span></div>
+<div class="meta">${meta}</div>
+<div style="margin-top:8px"><span style="color:var(--g3);font-size:12px;cursor:pointer" onclick="deleteEntry(${e.id})">&#128465; Delete</span></div>`;
+list.appendChild(card);
+});
+}
+
+function deleteEntry(id){
+if(!confirm('Delete this entry?'))return;
+entries=entries.filter(e=>e.id!==id);
+localStorage.setItem('panel_inspections',JSON.stringify(entries));
+renderSaved();updateCounts();
+}
+
+function exportCSV(){
+if(!entries.length){alert('No entries to export');return;}
+let csv='panel_id,level,inspection_date,inspector,leakage_grade,leakage_zones,leakage_type,inspected_from_space,notes,photo_count,photo_timestamps\n';
+entries.forEach(e=>{
+csv+=`"${e.panel_id}","${e.level}","${e.date}","${e.inspector}",${e.grade},"${e.zones}","${e.type}","","${(e.notes||'').replace(/"/g,'""')}",${e.photos||0},"${e.photo_timestamps||''}"\n`;
+});
+const blob=new Blob([csv],{type:'text/csv'});
+const url=URL.createObjectURL(blob);
+const a=document.createElement('a');
+a.href=url;a.download='Inspections_'+new Date().toISOString().slice(0,10)+'.csv';
+a.click();URL.revokeObjectURL(url);
+}
+
+function clearAll(){
+if(!confirm('Delete ALL saved inspections? This cannot be undone.'))return;
+if(!confirm('Are you sure? This will delete all records.'))return;
+entries=[];localStorage.removeItem('panel_inspections');
+renderSaved();updateCounts();
+}
+
+function updateCounts(){
+document.getElementById('countBadge').textContent=entries.length;
+document.getElementById('floatingCount').textContent=entries.length;
+document.getElementById('exportCount').textContent=entries.length;
+}
+
+initLevels();initInspectors();updateCounts();
+
+// Register service worker for offline caching
+if('serviceWorker' in navigator){
+navigator.serviceWorker.register('./sw.js').then(reg=>{
+console.log('SW registered');
+}).catch(err=>console.log('SW registration failed:',err));
+}
+</script>
+</body></html>

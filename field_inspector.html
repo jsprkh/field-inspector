@@ -356,7 +356,7 @@ checkSave();
 function logPhotoTimestamp(){
 const now=new Date();
 const ts=now.toISOString().slice(0,19).replace('T',' ');
-const label=now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+const label=now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
 const dateLabel=now.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
 state.photoTimestamps.push({timestamp:ts,label:dateLabel+' '+label});
 renderPhotoList();

@@ -1,4 +1,4 @@
-const CACHE = 'n105-inspector-v2.1';
+const CACHE = 'n105-inspector-v3.0';
 const ASSETS = [
   './',
   './field_inspector.html'
